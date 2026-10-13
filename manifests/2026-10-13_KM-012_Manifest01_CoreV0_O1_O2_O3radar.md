@@ -39,7 +39,7 @@ These are three results. In each case the spec was committed before its code and
 
 | Method | Recall |
 |---|---|
-| **Angel Eyes 0.945** | 0.945 |
+| **Angel Eyes** | **0.945** |
 | Random forest on the raw matrix | 0.816 |
 | Logistic regression on the raw matrix | 0.667 |
 | Placebo | 0.006 |
