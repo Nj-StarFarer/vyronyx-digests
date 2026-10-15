@@ -20,3 +20,5 @@ Prepared by Opus, under NJ's standing delegation. Files in the private repositor
   same few swaps). These two changes separate PASS from MISS.
 
 *Opus · 16 Oct 2026*
+
+*Correction (15 Oct 2026, 22:33 IST): this run happened on 15 Oct IST (16:47-16:56 UTC), not 16 Oct; the file name keeps its first date. The spec file hash above is of the version before its date-correction note (commit bda4a30a).*
