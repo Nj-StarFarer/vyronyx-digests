@@ -10,6 +10,6 @@ The commit time of THIS file is the authoritative publication time.
 | File | Bytes | SHA-256 |
 |---|---|---|
 | Rivox.zip | 17068498 | 329cf28e9c381ebcfadb365308430c7482871c95c40a842369324b0c02761b1c |
-| Kershope.zip | 32382569 | to be added when the download finishes, BEFORE unzipping |
+| Kershope.zip | 32382569 | 942b1bae1f32ac7a37f6ce7435ac93b780e2916b42cb1b298b08a7edaea157dc (added before unzipping) |
 
 - **State at publication:** the Rivox CSV headers and row counts have been read. No analysis has been run. Kershope's only exposure so far is its zip file list, read in the browser to check that it contains simultaneous trees, plus one 6-row header sample. No series was analysed.
