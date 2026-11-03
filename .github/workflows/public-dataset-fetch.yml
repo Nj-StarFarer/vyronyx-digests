@@ -7,7 +7,7 @@ on:
         required: true
         default: "aykutkabaoglu/uav-flight-anomaly-dataset"
       mode:
-        description: "list = file names and sizes; fetch = download files listed in 'files'"
+        description: "list = file names and sizes; fetch = download files listed in 'files'; cleanup = delete temporary drop branches"
         required: true
         default: "list"
       files:
@@ -21,7 +21,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - name: Delete temporary drop branches
+        if: inputs.mode == 'cleanup'
+        run: |
+          git ls-remote --heads "https://github.com/${{ github.repository }}.git" 'tmp-drop-*' | awk '{print $2}' | while read r; do
+            git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" --delete "${r#refs/heads/}" && echo "deleted $r"; done
       - name: List or fetch
+        if: inputs.mode != 'cleanup'
         env:
           DS: ${{ inputs.dataset }}
           MODE: ${{ inputs.mode }}
@@ -62,12 +68,14 @@ jobs:
               json.dump(man, open("out/fetch_manifest.json", "w"), indent=1)
           PY
       - name: Hand over through a temporary branch (deleted after it is read)
+        if: inputs.mode != 'cleanup'
         run: |
           cd out
           git init -q -b drop && git add -A
           git -c user.name=dataset-fetch -c user.email=dataset-fetch@users.noreply.github.com commit -qm "temporary drop: ${{ inputs.mode }} (public open-licence data; ${{ inputs.dataset }})"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" drop:refs/heads/tmp-drop-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
+        if: inputs.mode != 'cleanup'
         with:
           name: dataset-${{ inputs.mode }}
           path: out
