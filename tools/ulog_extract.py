@@ -13,7 +13,7 @@ import urllib.request
 import numpy as np
 
 TOPICS = ["vehicle_gps_position", "sensor_combined", "vehicle_attitude", "vehicle_air_data", "sensor_baro",
-          "vehicle_global_position", "vehicle_local_position"]
+          "vehicle_global_position", "vehicle_local_position", "vehicle_land_detected"]
 KEEP = {
     "vehicle_gps_position": ["lat", "lon", "alt", "vel_n_m_s", "vel_e_m_s", "vel_d_m_s", "fix_type", "eph", "epv",
                              "satellites_used", "jamming_indicator", "noise_per_ms", "latitude_deg", "longitude_deg",
@@ -24,6 +24,7 @@ KEEP = {
     "sensor_baro": ["altitude", "pressure"],
     "vehicle_global_position": ["lat", "lon", "alt", "eph"],
     "vehicle_local_position": ["x", "y", "z", "vx", "vy", "vz", "xy_valid"],
+    "vehicle_land_detected": ["landed", "maybe_landed", "ground_contact"],
 }
 
 
