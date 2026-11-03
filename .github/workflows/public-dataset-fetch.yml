@@ -1,0 +1,68 @@
+name: Public dataset fetch (list or download open-licence files; nothing is stored in this repo)
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: "Hugging Face dataset id"
+        required: true
+        default: "aykutkabaoglu/uav-flight-anomaly-dataset"
+      mode:
+        description: "list = file names and sizes; fetch = download files listed in 'files'"
+        required: true
+        default: "list"
+      files:
+        description: "fetch only: comma-separated paths inside the dataset"
+        required: false
+        default: ""
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: List or fetch
+        env:
+          DS: ${{ inputs.dataset }}
+          MODE: ${{ inputs.mode }}
+          FILES: ${{ inputs.files }}
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.parse, hashlib
+          ds, mode = os.environ["DS"], os.environ["MODE"]
+          api = f"https://huggingface.co/api/datasets/{ds}"
+          def get(u):
+              with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "dataset-fetch"}), timeout=120) as r:
+                  return r.read(), r.headers
+          if mode == "list":
+              info, _ = get(api)
+              open("out/info.json", "wb").write(info)
+              files, url = [], api + "/tree/main?recursive=true&expand=false"
+              while url:
+                  body, h = get(url)
+                  files += json.loads(body)
+                  nxt = None
+                  for part in (h.get("Link") or "").split(","):
+                      if 'rel="next"' in part:
+                          nxt = part[part.find("<") + 1:part.find(">")]
+                  url = nxt
+              files = [{"path": f["path"], "type": f["type"], "size": f.get("size")} for f in files]
+              json.dump(files, open("out/files.json", "w"), indent=0)
+              n = sum(1 for f in files if f["type"] == "file"); gb = sum(f["size"] or 0 for f in files) / 1e9
+              print(f"{n} files, {gb:.2f} GB")
+          else:
+              man = []
+              for p in [x.strip() for x in os.environ["FILES"].split(",") if x.strip()]:
+                  u = f"https://huggingface.co/datasets/{ds}/resolve/main/" + urllib.parse.quote(p)
+                  dst = os.path.join("out", p); os.makedirs(os.path.dirname(dst) or "out", exist_ok=True)
+                  body, _ = get(u); open(dst, "wb").write(body)
+                  man.append({"path": p, "bytes": len(body), "sha256": hashlib.sha256(body).hexdigest()})
+                  print(p, len(body))
+              json.dump(man, open("out/fetch_manifest.json", "w"), indent=1)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dataset-${{ inputs.mode }}
+          path: out
+          retention-days: 3
