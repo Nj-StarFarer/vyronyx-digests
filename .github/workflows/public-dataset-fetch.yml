@@ -15,7 +15,7 @@ on:
         required: false
         default: ""
 permissions:
-  contents: read
+  contents: write
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -61,6 +61,12 @@ jobs:
                   print(p, len(body))
               json.dump(man, open("out/fetch_manifest.json", "w"), indent=1)
           PY
+      - name: Hand over through a temporary branch (deleted after it is read)
+        run: |
+          cd out
+          git init -q -b drop && git add -A
+          git -c user.name=dataset-fetch -c user.email=dataset-fetch@users.noreply.github.com commit -qm "temporary drop: ${{ inputs.mode }} (public open-licence data; ${{ inputs.dataset }})"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" drop:refs/heads/tmp-drop-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
         with:
           name: dataset-${{ inputs.mode }}
