@@ -7,7 +7,7 @@ on:
         required: true
         default: "aykutkabaoglu/uav-flight-anomaly-dataset"
       mode:
-        description: "list = file names and sizes; fetch = download files listed in 'files'; cleanup = delete temporary drop branches"
+        description: "list = file names and sizes; fetch = download files listed in 'files'; cleanup = delete temporary drop branches; ulog = census + GPS-flight extract of PX4 logs listed in the dataset's mapping.json"
         required: true
         default: "list"
       files:
@@ -19,15 +19,32 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - name: Delete temporary drop branches
         if: inputs.mode == 'cleanup'
         run: |
+          git init -q t && cd t
           git ls-remote --heads "https://github.com/${{ github.repository }}.git" 'tmp-drop-*' | awk '{print $2}' | while read r; do
             git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" --delete "${r#refs/heads/}" && echo "deleted $r"; done
+      - uses: actions/checkout@v4
+        if: inputs.mode == 'ulog'
+        with:
+          path: repo
+      - name: PX4 log census and GPS-flight extract
+        if: inputs.mode == 'ulog'
+        env:
+          DS: ${{ inputs.dataset }}
+        run: |
+          pip install -q pyulog==1.3.0 numpy
+          mkdir -p out
+          curl -sSL -o out/mapping.json "https://huggingface.co/datasets/$DS/resolve/main/mapping.json"
+          python3 repo/tools/ulog_extract.py "$DS" out/mapping.json out 6
+          rm -f out/tmp_*
+          printf 'Source: https://huggingface.co/datasets/%s (CC BY 4.0). Extract of selected PX4 topics; unchanged values.\n' "$DS" > out/ATTRIBUTION.txt
+          du -sh out
       - name: List or fetch
-        if: inputs.mode != 'cleanup'
+        if: inputs.mode == 'list' || inputs.mode == 'fetch'
         env:
           DS: ${{ inputs.dataset }}
           MODE: ${{ inputs.mode }}
