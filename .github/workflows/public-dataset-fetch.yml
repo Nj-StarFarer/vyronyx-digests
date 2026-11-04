@@ -7,7 +7,7 @@ on:
         required: true
         default: "aykutkabaoglu/uav-flight-anomaly-dataset"
       mode:
-        description: "list = file names and sizes; fetch = download files listed in 'files'; cleanup = delete temporary drop branches; ulog = census + GPS-flight extract of PX4 logs listed in the dataset's mapping.json"
+        description: "list = file names and sizes; fetch = download files listed in 'files'; cleanup = delete temporary drop branches; ulog = census + GPS-flight extract of PX4 logs listed in the dataset's mapping.json; commons_audio = Commons audio by title (files = JSON list of titles), 16 kHz mono FLAC"
         required: true
         default: "list"
       files:
@@ -28,7 +28,7 @@ jobs:
           git ls-remote --heads "https://github.com/${{ github.repository }}.git" 'tmp-drop-*' | awk '{print $2}' | while read r; do
             git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" --delete "${r#refs/heads/}" && echo "deleted $r"; done
       - uses: actions/checkout@v4
-        if: inputs.mode == 'ulog'
+        if: inputs.mode == 'ulog' || inputs.mode == 'commons_audio'
         with:
           path: repo
       - name: PX4 log census and GPS-flight extract
@@ -42,6 +42,15 @@ jobs:
           python3 repo/tools/ulog_extract.py "$DS" out/mapping.json out 6
           rm -f out/tmp_*
           printf 'Source: https://huggingface.co/datasets/%s (CC BY 4.0). Extract of selected PX4 topics; unchanged values.\n' "$DS" > out/ATTRIBUTION.txt
+          du -sh out
+      - name: Commons audio (by title)
+        if: inputs.mode == 'commons_audio'
+        env:
+          TITLES: ${{ inputs.files }}
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg > /dev/null
+          mkdir -p out && printf '%s' "$TITLES" > titles.json
+          python3 repo/tools/commons_audio.py titles.json out 360
           du -sh out
       - name: List or fetch
         if: inputs.mode == 'list' || inputs.mode == 'fetch'
