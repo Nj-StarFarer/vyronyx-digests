@@ -1,10 +1,11 @@
 """Generic: download Wikimedia Commons audio files by title and convert to 16 kHz mono FLAC (first N seconds).
 Public, free-licence data only. Records each file's licence and source URL. Usage:
 python commons_audio.py TITLES_JSON OUT_DIR SECONDS"""
-import hashlib, json, os, subprocess, sys, urllib.parse, urllib.request
+import hashlib, json, os, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
 
 API = "https://commons.wikimedia.org/w/api.php?"
-UA = "vyronyx-dataset-fetch/1.0 (public data research)"
+UA = "vyronyx-dataset-fetch/1.1 (https://github.com/Nj-StarFarer/vyronyx-digests; research on public sound data)"
+PAUSE_S = 8
 
 
 def api(params):
@@ -33,9 +34,17 @@ def main(titles_file, out, seconds):
         name = hashlib.sha256(t.encode()).hexdigest()[:16]
         raw = os.path.join(out, "raw_" + name); dst = os.path.join(out, name + ".flac")
         try:
-            req = urllib.request.Request(m["url"], headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=600) as r, open(raw, "wb") as f:
-                f.write(r.read())
+            for attempt in range(4):                       # be polite: one file at a time, back off when asked
+                try:
+                    req = urllib.request.Request(m["url"], headers={"User-Agent": UA})
+                    with urllib.request.urlopen(req, timeout=600) as r, open(raw, "wb") as f:
+                        f.write(r.read())
+                    break
+                except urllib.error.HTTPError as e:
+                    if e.code != 429 or attempt == 3:
+                        raise
+                    time.sleep(int(e.headers.get("Retry-After") or 60) + 30 * attempt)
+            time.sleep(PAUSE_S)
             p = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-vn", "-ac", "1", "-ar", "16000", "-t", str(seconds),
                                 "-sample_fmt", "s16", dst], capture_output=True, text=True)
             row.update(file=os.path.basename(dst), ok=p.returncode == 0, err=p.stderr[-200:] if p.returncode else None)
